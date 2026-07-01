@@ -1,0 +1,5 @@
+kind-*.kubeconfig
+*.kubeconfig
+.DS_Store
+__pycache__/
+*.pdf.tmp
