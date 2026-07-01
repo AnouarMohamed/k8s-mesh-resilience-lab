@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: backend
+  namespace: app
+spec:
+  hosts:
+    - backend
+  http:
+    - retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: connect-failure,refused-stream,reset,5xx
+      route:
+        - destination:
+            host: backend
+            subset: v1
+            port:
+              number: 8080
+          weight: 90
+        - destination:
+            host: backend
+            subset: v2
+            port:
+              number: 8080
+          weight: 10
