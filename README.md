@@ -5,21 +5,33 @@ This lab proves that Istio can enforce STRICT mTLS, shift traffic between servic
 ## Architecture
 
 ```mermaid
-flowchart LR
-    outside[Plain curl pod<br/>default namespace<br/>no sidecar]
-    frontend[frontend pod<br/>curl client + Envoy<br/>namespace app]
-    svc[backend Service<br/>port 8080]
-    v1[backend-v1<br/>2 replicas + Envoy]
-    v2[backend-v2<br/>2 replicas + Envoy]
-    istiod[istiod<br/>control plane]
+flowchart TB
+    subgraph control[istio-system]
+      direction LR
+      istiod[istiod<br/>control plane]
+      meshConfig[sidecar config<br/>and workload certs]
+    end
 
-    outside -. rejected by STRICT mTLS .-> svc
+    subgraph app[app namespace<br/>sidecar injection enabled]
+      direction LR
+      frontend[frontend<br/>curl + Envoy]
+      svc[backend Service<br/>port 8080]
+      v1[backend-v1<br/>2 replicas + Envoy]
+      v2[backend-v2<br/>2 replicas + Envoy]
+      sidecars[Envoy sidecars<br/>xDS config + certs]
+    end
+
+    outside[default namespace<br/>curl pod, no sidecar]
+    denied[STRICT mTLS<br/>rejects plaintext]
+
     frontend --> svc
     svc -->|90%| v1
     svc -->|10%| v2
-    istiod -. config, certs .-> frontend
-    istiod -. config, certs .-> v1
-    istiod -. config, certs .-> v2
+    outside -. plaintext HTTP .-> denied
+    denied -. no mesh identity .-> svc
+
+    istiod -.-> meshConfig
+    meshConfig -.-> sidecars
 ```
 
 ## Quickstart

@@ -5,31 +5,43 @@ This lab deploys a small two-version service behind Istio so that mesh behavior 
 ```mermaid
 flowchart TB
     subgraph cluster[kind cluster]
+      direction TB
+
       subgraph istio[istio-system]
+        direction LR
         istiod[istiod]
-        ingress[istio-ingressgateway]
-        egress[istio-egressgateway]
+        gateways[ingressgateway<br/>egressgateway]
       end
 
       subgraph app[app namespace<br/>istio-injection=enabled]
+        direction LR
         frontend[frontend<br/>curl client + Envoy sidecar]
+        k6[k6 Job<br/>load generator + Envoy sidecar]
         backendService[backend Service<br/>ClusterIP:8080]
         backendV1[backend-v1<br/>2 replicas + Envoy sidecars]
         backendV2[backend-v2<br/>2 replicas + Envoy sidecars]
-        k6[k6 Job<br/>load generator + Envoy sidecar]
+        sidecars[Envoy sidecars<br/>xDS config + workload certs]
       end
 
       external[default namespace curl pod<br/>no sidecar]
+      denied[STRICT mTLS<br/>rejects plaintext]
     end
 
-    istiod -. xDS config and certificates .-> frontend
-    istiod -. xDS config and certificates .-> backendV1
-    istiod -. xDS config and certificates .-> backendV2
+    istiod -.-> sidecars
+
     frontend --> backendService
     k6 --> backendService
     backendService -->|90%| backendV1
     backendService -->|10%| backendV2
-    external -. plaintext rejected by STRICT mTLS .-> backendService
+    external -. plaintext HTTP .-> denied
+    denied -. no mesh identity .-> backendService
+
+    classDef control fill:#eef6ff,stroke:#3b82f6,color:#0f172a;
+    classDef workload fill:#f8fafc,stroke:#64748b,color:#0f172a;
+    classDef failure fill:#fff1f2,stroke:#e11d48,color:#0f172a;
+    class istiod,gateways,sidecars control;
+    class frontend,k6,backendService,backendV1,backendV2 workload;
+    class external,denied failure;
 ```
 
 ## What Is Deployed
