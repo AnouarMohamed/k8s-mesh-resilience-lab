@@ -1,0 +1,28 @@
+---
+name: validate
+
+"on":
+  push:
+  pull_request:
+
+jobs:
+  manifests:
+    name: Validate Kubernetes manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          version="v0.6.7"
+          archive="kubeconform-linux-amd64.tar.gz"
+          base_url="https://github.com/yannh/kubeconform/releases/download"
+          curl -sSL \
+            "${base_url}/${version}/${archive}" \
+            | tar xz
+          sudo mv kubeconform /usr/local/bin/kubeconform
+
+      - name: Validate manifests
+        run: >
+          kubeconform -strict -summary -ignore-missing-schemas manifests/*.yaml
